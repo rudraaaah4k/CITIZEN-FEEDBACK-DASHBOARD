@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
@@ -9,10 +10,10 @@ import { Input } from '../../components/ui/Input';
 import { Textarea } from '../../components/ui/Textarea';
 import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
-import { StarRating } from '../../components/ui/StarRating';
 import { useDepartments } from '../../hooks/useDepartments';
 import { useCategories } from '../../hooks/useCategories';
 import { useSubmitFeedback } from '../../hooks/useFeedback';
+import { useAuthStore } from '../../stores/authStore';
 
 const schema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters').max(150),
@@ -20,7 +21,6 @@ const schema = z.object({
   department: z.string().min(1, 'Select a department'),
   category: z.string().min(1, 'Select a category'),
   priority: z.enum(['low', 'medium', 'high', 'critical']),
-  rating: z.number().min(1).max(5),
   address: z.string().optional(),
   city: z.string().optional(),
   state: z.string().optional(),
@@ -31,19 +31,43 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function SubmitFeedback() {
+  const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [files, setFiles] = useState<File[]>([]);
   const { data: departments } = useDepartments({ isActive: true });
   const {
     register,
     handleSubmit,
     watch,
-    control,
     reset,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { priority: 'medium', rating: 3, isAnonymous: false },
+    defaultValues: {
+      priority: 'medium',
+      isAnonymous: false,
+      address: user?.address || '',
+      city: user?.city || '',
+      state: user?.state || '',
+      pincode: user?.pincode || '',
+    },
   });
+
+  // Keep location fields in sync if the profile finishes loading after mount,
+  // while still letting the user edit them freely.
+  useEffect(() => {
+    if (user) {
+      reset((prev) => ({
+        ...prev,
+        address: prev.address || user.address || '',
+        city: prev.city || user.city || '',
+        state: prev.state || user.state || '',
+        pincode: prev.pincode || user.pincode || '',
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.address, user?.city, user?.state, user?.pincode]);
+
   const selectedDepartment = watch('department');
   const { data: categories } = useCategories(selectedDepartment);
   const { mutate: submit, isPending } = useSubmitFeedback();
@@ -63,7 +87,6 @@ export default function SubmitFeedback() {
     formData.append('department', data.department);
     formData.append('category', data.category);
     formData.append('priority', data.priority);
-    formData.append('rating', String(data.rating));
     formData.append('isAnonymous', String(data.isAnonymous));
     formData.append(
       'location',
@@ -75,6 +98,7 @@ export default function SubmitFeedback() {
       onSuccess: () => {
         reset();
         setFiles([]);
+        navigate('/dashboard');
       },
     });
   };
@@ -122,26 +146,16 @@ export default function SubmitFeedback() {
               />
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Select
-                label="Priority"
-                options={[
-                  { label: 'Low', value: 'low' },
-                  { label: 'Medium', value: 'medium' },
-                  { label: 'High', value: 'high' },
-                  { label: 'Critical', value: 'critical' },
-                ]}
-                {...register('priority')}
-              />
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-foreground/90">Rate your experience</label>
-                <Controller
-                  control={control}
-                  name="rating"
-                  render={({ field }) => <StarRating value={field.value} onChange={field.onChange} />}
-                />
-              </div>
-            </div>
+            <Select
+              label="Priority"
+              options={[
+                { label: 'Low', value: 'low' },
+                { label: 'Medium', value: 'medium' },
+                { label: 'High', value: 'high' },
+                { label: 'Critical', value: 'critical' },
+              ]}
+              {...register('priority')}
+            />
 
             <div className="grid gap-5 sm:grid-cols-2">
               <Input label="Address (optional)" placeholder="Street address" {...register('address')} />

@@ -60,7 +60,6 @@ CategorySchema.pre('save', function (next) {
 });
 
 CategorySchema.index({ department: 1 });
-CategorySchema.index({ slug: 1 });
 CategorySchema.index({ isActive: 1 });
 
 const Category: Model<ICategory> = mongoose.model<ICategory>('Category', CategorySchema);

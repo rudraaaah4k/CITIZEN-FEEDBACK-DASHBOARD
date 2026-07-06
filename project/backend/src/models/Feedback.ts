@@ -222,7 +222,7 @@ FeedbackSchema.pre('save', async function (next) {
 });
 
 // Indexes for performance
-FeedbackSchema.index({ trackingId: 1 });
+
 FeedbackSchema.index({ status: 1 });
 FeedbackSchema.index({ priority: 1 });
 FeedbackSchema.index({ department: 1 });

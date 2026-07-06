@@ -1,11 +1,14 @@
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { User, Mail, Phone, MapPin } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { User, Mail, Phone, MapPin, Eye, EyeOff, Lock } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Avatar } from '../../components/ui/Avatar';
 import { useAuth } from '../../hooks/useAuth';
 import { useAuthStore } from '../../stores/authStore';
+import { authService } from '../../services/authService';
 
 interface ProfileForm {
   name: string;
@@ -22,9 +25,9 @@ interface PasswordForm {
 }
 
 export default function Profile() {
-  const { user } = useAuthStore();
-  const { updateProfile, isUpdateLoading } = useAuth();
-  const { register, handleSubmit } = useForm<ProfileForm>({
+  const { user, updateUser } = useAuthStore();
+  const { updateProfile, isUpdateLoading, changePassword, isChangePasswordLoading } = useAuth();
+  const { register, handleSubmit, reset } = useForm<ProfileForm>({
     defaultValues: {
       name: user?.name,
       phone: user?.phone,
@@ -34,7 +37,45 @@ export default function Profile() {
       pincode: user?.pincode,
     },
   });
-  const { register: registerPw, handleSubmit: handlePwSubmit, reset: resetPw } = useForm<PasswordForm>();
+
+  // Always pull the freshest copy from the database, in case fields (like phone/city/state
+  // saved at registration) aren't yet reflected in the locally cached user.
+  const { data: freshUser } = useQuery({
+    queryKey: ['me'],
+    queryFn: authService.getMe,
+    select: (res) => res.data.data.user,
+  });
+
+  useEffect(() => {
+    if (freshUser) {
+      updateUser(freshUser);
+      reset({
+        name: freshUser.name,
+        phone: freshUser.phone,
+        address: freshUser.address,
+        city: freshUser.city,
+        state: freshUser.state,
+        pincode: freshUser.pincode,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [freshUser]);
+
+  const {
+    register: registerPw,
+    handleSubmit: handlePwSubmit,
+    reset: resetPw,
+    formState: { errors: pwErrors },
+  } = useForm<PasswordForm>();
+  const [showCurrentPw, setShowCurrentPw] = useState(false);
+  const [showNewPw, setShowNewPw] = useState(false);
+
+  const onChangePassword = (data: PasswordForm) => {
+    changePassword(
+      { currentPassword: data.currentPassword, newPassword: data.newPassword },
+      { onSuccess: () => resetPw() }
+    );
+  };
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -83,17 +124,45 @@ export default function Profile() {
           <CardTitle>Change Password</CardTitle>
         </CardHeader>
         <CardContent>
-          <form
-            onSubmit={handlePwSubmit(async (data) => {
-              const { authService } = await import('../../services/authService');
-              await authService.changePassword(data.currentPassword, data.newPassword);
-              resetPw();
-            })}
-            className="space-y-4"
-          >
-            <Input label="Current Password" type="password" {...registerPw('currentPassword', { required: true })} />
-            <Input label="New Password" type="password" {...registerPw('newPassword', { required: true, minLength: 6 })} />
-            <Button type="submit" variant="outline">
+          <form onSubmit={handlePwSubmit(onChangePassword)} className="space-y-4">
+            <Input
+              label="Current Password"
+              type={showCurrentPw ? 'text' : 'password'}
+              leftIcon={<Lock className="h-4 w-4" />}
+              rightIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowCurrentPw((v) => !v)}
+                  className="pointer-events-auto text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              }
+              error={pwErrors.currentPassword?.message}
+              {...registerPw('currentPassword', { required: 'Current password is required' })}
+            />
+            <Input
+              label="New Password"
+              type={showNewPw ? 'text' : 'password'}
+              leftIcon={<Lock className="h-4 w-4" />}
+              rightIcon={
+                <button
+                  type="button"
+                  onClick={() => setShowNewPw((v) => !v)}
+                  className="pointer-events-auto text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              }
+              error={pwErrors.newPassword?.message}
+              {...registerPw('newPassword', {
+                required: 'New password is required',
+                minLength: { value: 6, message: 'Must be at least 6 characters' },
+              })}
+            />
+            <Button type="submit" variant="outline" isLoading={isChangePasswordLoading}>
               Update Password
             </Button>
           </form>

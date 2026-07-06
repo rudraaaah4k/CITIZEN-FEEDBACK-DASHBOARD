@@ -1,7 +1,9 @@
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']); // Google DNS
+
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import mongoSanitize from 'express-mongo-sanitize';
@@ -10,7 +12,6 @@ import fs from 'fs';
 
 import { generalLimiter } from './middleware/rateLimiter';
 import { errorHandler, notFound } from './middleware/errorHandler';
-import logger from './utils/logger';
 
 import authRoutes from './routes/authRoutes';
 import feedbackRoutes from './routes/feedbackRoutes';
@@ -19,12 +20,11 @@ import categoryRoutes from './routes/categoryRoutes';
 import userRoutes from './routes/userRoutes';
 import analyticsRoutes from './routes/analyticsRoutes';
 import notificationRoutes from './routes/notificationRoutes';
-import reportRoutes from './routes/reportRoutes';
 
 const app = express();
 
 // Ensure upload and log directories exist
-['uploads', 'logs', 'reports'].forEach((dir) => {
+['uploads', 'logs'].forEach((dir) => {
   const dirPath = path.join(process.cwd(), dir);
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -64,21 +64,16 @@ app.use(cookieParser());
 app.use(mongoSanitize());
 app.use(compression());
 
-// Logging
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined', {
-    stream: { write: (message) => logger.info(message.trim()) },
-  }));
-}
+// Note: HTTP request logging (morgan) intentionally disabled to keep the
+// terminal clean — only startup messages (Mongo connected, server running,
+// websocket ready) and actual errors are logged. Re-enable morgan here if
+// per-request access logs are needed again.
 
 // Rate limiting
 app.use('/api/', generalLimiter);
 
 // Static files
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
-app.use('/reports', express.static(path.join(process.cwd(), 'reports')));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -101,7 +96,6 @@ app.use(`${API_PREFIX}/categories`, categoryRoutes);
 app.use(`${API_PREFIX}/users`, userRoutes);
 app.use(`${API_PREFIX}/analytics`, analyticsRoutes);
 app.use(`${API_PREFIX}/notifications`, notificationRoutes);
-app.use(`${API_PREFIX}/reports`, reportRoutes);
 
 // 404 handler
 app.use(notFound);

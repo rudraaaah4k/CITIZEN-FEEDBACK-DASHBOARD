@@ -1,110 +1,113 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Search, CheckCircle2, Clock, XCircle, MessageSquareText } from 'lucide-react';
-import { Card, CardContent } from '../../components/ui/Card';
-import { Input } from '../../components/ui/Input';
+import { MessageSquarePlus, ChevronLeft, ChevronRight, Search, BrainCircuit } from 'lucide-react';
+import { Card } from '../../components/ui/Card';
+import { Select } from '../../components/ui/Select';
 import { Button } from '../../components/ui/Button';
 import { StatusBadge, PriorityBadge, SentimentBadge } from '../../components/shared/StatusBadge';
-import { useTrackFeedback } from '../../hooks/useFeedback';
-import { AnimatedBackground } from '../../components/shared/AnimatedBackground';
-import { formatDateTime, cn } from '../../lib/utils';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { TableRowSkeleton } from '../../components/ui/Skeleton';
+import { useMyFeedback } from '../../hooks/useFeedback';
+import { formatDate } from '../../lib/utils';
 
-const timelineIcon = (status: string) => {
-  if (status === 'resolved') return CheckCircle2;
-  if (status === 'rejected') return XCircle;
-  return Clock;
-};
+const statusOptions = [
+  { label: 'Pending', value: 'pending' },
+  { label: 'Under Review', value: 'under_review' },
+  { label: 'In Progress', value: 'in_progress' },
+  { label: 'Resolved', value: 'resolved' },
+  { label: 'Rejected', value: 'rejected' },
+  { label: 'Closed', value: 'closed' },
+];
 
 export default function TrackFeedback() {
-  const [input, setInput] = useState('');
-  const [trackingId, setTrackingId] = useState('');
-  const { data: feedback, isLoading, isError } = useTrackFeedback(trackingId, !!trackingId);
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState('');
+  const { data, isLoading } = useMyFeedback({ page, limit: 8, status: status || undefined });
+  const feedbacks = data?.feedbacks || [];
+  const pagination = data?.pagination;
 
   return (
-    <div className="relative min-h-screen px-4 pb-24 pt-32 sm:px-6 lg:px-8">
-      <AnimatedBackground />
-      <div className="mx-auto max-w-2xl">
-        <div className="text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600">
-            <MessageSquareText className="h-6 w-6 text-white" />
-          </div>
-          <h1 className="mt-4 text-3xl font-bold text-foreground">Track Your Complaint</h1>
-          <p className="mt-2 text-muted-foreground">Enter your tracking ID to see the latest status.</p>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Track Your Complaints</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Follow the live status and AI analysis of everything you've submitted.
+          </p>
         </div>
-
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setTrackingId(input.trim());
-          }}
-          className="mt-8 flex gap-3"
-        >
-          <Input placeholder="e.g. CFB-2026-000123" value={input} onChange={(e) => setInput(e.target.value)} className="flex-1" />
-          <Button type="submit" leftIcon={<Search className="h-4 w-4" />} isLoading={isLoading}>
-            Track
-          </Button>
-        </form>
-
-        {isError && trackingId && (
-          <p className="mt-6 text-center text-sm text-red-400">No feedback found for that tracking ID. Please check and try again.</p>
-        )}
-
-        {feedback && (
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-8">
-            <Card className="p-6">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground">{feedback.trackingId}</p>
-                  <h2 className="mt-1 text-lg font-semibold text-foreground">{feedback.title}</h2>
-                </div>
-                <div className="flex gap-2">
-                  <PriorityBadge priority={feedback.priority} />
-                  <StatusBadge status={feedback.status} />
-                </div>
-              </div>
-              <p className="mt-4 text-sm text-muted-foreground">{feedback.description}</p>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <SentimentBadge sentiment={feedback.aiAnalysis?.sentiment || 'neutral'} />
-                {feedback.department?.name && (
-                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-muted-foreground">
-                    {feedback.department.name}
-                  </span>
-                )}
-              </div>
-
-              <div className="mt-8">
-                <p className="mb-4 text-sm font-medium text-foreground">Status Timeline</p>
-                <div className="space-y-4">
-                  {(feedback.statusHistory || []).map((h, i) => {
-                    const Icon = timelineIcon(h.status);
-                    return (
-                      <div key={i} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={cn(
-                              'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-                              h.status === 'resolved' ? 'bg-emerald-500/20 text-emerald-400' : h.status === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-indigo-500/20 text-indigo-400'
-                            )}
-                          >
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          {i < feedback.statusHistory.length - 1 && <div className="mt-1 h-full w-px flex-1 bg-white/10" />}
-                        </div>
-                        <div className="pb-4">
-                          <StatusBadge status={h.status} />
-                          <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(h.changedAt)}</p>
-                          {h.note && <p className="mt-1 text-sm text-muted-foreground">{h.note}</p>}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </Card>
-          </motion.div>
-        )}
+        <Link to="/submit-feedback">
+          <Button leftIcon={<MessageSquarePlus className="h-4 w-4" />}>New Feedback</Button>
+        </Link>
       </div>
+
+      <Card className="p-4">
+        <div className="max-w-xs">
+          <Select
+            placeholder="All statuses"
+            options={statusOptions}
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
+      </Card>
+
+      <Card>
+        {isLoading ? (
+          <div>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <TableRowSkeleton key={i} />
+            ))}
+          </div>
+        ) : feedbacks.length === 0 ? (
+          <div className="p-6">
+            <EmptyState icon={Search} title="No complaints found" description="Try adjusting your filters or submit a new complaint." />
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {feedbacks.map((f, i) => (
+              <motion.div key={f._id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: i * 0.04 }}>
+                <Link
+                  to={`/feedback/${f._id}`}
+                  className="flex flex-col gap-3 p-5 transition-colors hover:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-foreground truncate">{f.title}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {f.trackingId} · {f.department?.name} · {formatDate(f.createdAt)}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <SentimentBadge sentiment={f.aiAnalysis?.sentiment || 'neutral'} />
+                    <PriorityBadge priority={f.priority} />
+                    <StatusBadge status={f.status} />
+                    <span className="flex items-center gap-1 rounded-full border border-indigo-500/20 bg-indigo-500/5 px-2.5 py-1 text-xs text-indigo-300">
+                      <BrainCircuit className="h-3 w-3" /> AI Analysis
+                    </span>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-center gap-3">
+          <Button variant="outline" size="sm" disabled={!pagination.hasPrevPage} onClick={() => setPage((p) => p - 1)} leftIcon={<ChevronLeft className="h-4 w-4" />}>
+            Prev
+          </Button>
+          <span className="text-sm text-muted-foreground">
+            Page {pagination.page} of {pagination.totalPages}
+          </span>
+          <Button variant="outline" size="sm" disabled={!pagination.hasNextPage} onClick={() => setPage((p) => p + 1)} rightIcon={<ChevronRight className="h-4 w-4" />}>
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

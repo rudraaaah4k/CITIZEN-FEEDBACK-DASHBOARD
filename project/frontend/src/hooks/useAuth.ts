@@ -95,7 +95,31 @@ export const useAuth = () => {
     },
   });
 
+  const changePasswordMutation = useMutation({
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string }) =>
+      authService.changePassword(currentPassword, newPassword),
+    onSuccess: () => {
+      addToast({
+        type: 'success',
+        title: 'Password updated successfully',
+        message: 'Please log in again with your new password.',
+      });
+      storeLogout();
+      queryClient.clear();
+      navigate('/login');
+    },
+    onError: (error: { response?: { data?: { message?: string } } }) => {
+      const message = error.response?.data?.message || 'Failed to update password';
+      addToast({
+        type: 'error',
+        title: message.toLowerCase().includes('incorrect') ? 'Current password is wrong' : 'Update Failed',
+        message,
+      });
+    },
+  });
+
   return {
+
     user,
     isAuthenticated,
     isLoading,
@@ -105,11 +129,13 @@ export const useAuth = () => {
     forgotPassword: forgotPasswordMutation.mutate,
     resetPassword: resetPasswordMutation.mutate,
     updateProfile: updateProfileMutation.mutate,
+    changePassword: changePasswordMutation.mutate,
     isLoginLoading: loginMutation.isPending,
     isRegisterLoading: registerMutation.isPending,
     isLogoutLoading: logoutMutation.isPending,
     isForgotLoading: forgotPasswordMutation.isPending,
     isResetLoading: resetPasswordMutation.isPending,
     isUpdateLoading: updateProfileMutation.isPending,
+    isChangePasswordLoading: changePasswordMutation.isPending,
   };
 };

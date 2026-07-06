@@ -112,3 +112,25 @@ export const useFeedbackStats = () => {
     select: (data) => data.data.data,
   });
 };
+
+export const useDownloadFeedbackPDF = () => {
+  const { addToast } = useUIStore();
+
+  return useMutation({
+    mutationFn: async ({ id, trackingId }: { id: string; trackingId: string }) => {
+      const response = await feedbackService.downloadPDF(id);
+      const blob = new Blob([response.data as BlobPart], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `feedback-summary-${trackingId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    },
+    onError: () => {
+      addToast({ type: 'error', title: 'Failed to generate PDF summary' });
+    },
+  });
+};

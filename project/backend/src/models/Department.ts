@@ -64,8 +64,7 @@ const DepartmentSchema = new Schema<IDepartment>(
   }
 );
 
-DepartmentSchema.index({ name: 1 });
-DepartmentSchema.index({ code: 1 });
+
 DepartmentSchema.index({ isActive: 1 });
 
 const Department: Model<IDepartment> = mongoose.model<IDepartment>('Department', DepartmentSchema);
