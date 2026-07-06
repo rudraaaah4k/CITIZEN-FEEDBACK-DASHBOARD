@@ -1,3 +1,5 @@
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']); // Google DNS
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
