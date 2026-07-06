@@ -3,7 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { ToastContainer } from './components/ui/Toast';
 import { FullPageSpinner } from './components/ui/Spinner';
-import { ProtectedRoute, PublicOnlyRoute } from './components/shared/ProtectedRoute';
+import { ProtectedRoute, PublicOnlyRoute, HomeRoute } from './components/shared/ProtectedRoute';
 import { PublicLayout } from './components/layout/PublicLayout';
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import './components/charts/ChartSetup';
@@ -14,21 +14,19 @@ const Login = lazy(() => import('./pages/auth/Login'));
 const Register = lazy(() => import('./pages/auth/Register'));
 const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'));
 const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'));
-const TrackFeedback = lazy(() => import('./pages/citizen/TrackFeedback'));
-
 const CitizenDashboard = lazy(() => import('./pages/citizen/CitizenDashboard'));
 const SubmitFeedback = lazy(() => import('./pages/citizen/SubmitFeedback'));
-const MyFeedback = lazy(() => import('./pages/citizen/MyFeedback'));
+const TrackFeedback = lazy(() => import('./pages/citizen/TrackFeedback'));
 const FeedbackDetail = lazy(() => import('./pages/citizen/FeedbackDetail'));
 const Profile = lazy(() => import('./pages/citizen/Profile'));
 const Notifications = lazy(() => import('./pages/citizen/Notifications'));
 
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const ManageFeedback = lazy(() => import('./pages/admin/ManageFeedback'));
+const FeedbackSummary = lazy(() => import('./pages/admin/FeedbackSummary'));
 const ManageUsers = lazy(() => import('./pages/admin/ManageUsers'));
 const ManageDepartments = lazy(() => import('./pages/admin/ManageDepartments'));
-const Analytics = lazy(() => import('./pages/admin/Analytics'));
-const Reports = lazy(() => import('./pages/admin/Reports'));
+const DepartmentAnalytics = lazy(() => import('./pages/admin/DepartmentAnalytics'));
 
 function App() {
   return (
@@ -37,9 +35,10 @@ function App() {
         <AnimatePresence mode="wait">
           <Routes>
             {/* Public site */}
-            <Route element={<PublicLayout />}>
-              <Route path="/" element={<Landing />} />
-              <Route path="/track" element={<TrackFeedback />} />
+            <Route element={<HomeRoute />}>
+              <Route element={<PublicLayout />}>
+                <Route path="/" element={<Landing />} />
+              </Route>
             </Route>
 
             {/* Public-only auth routes */}
@@ -55,7 +54,7 @@ function App() {
               <Route element={<DashboardLayout />}>
                 <Route path="/dashboard" element={<CitizenDashboard />} />
                 <Route path="/submit-feedback" element={<SubmitFeedback />} />
-                <Route path="/my-feedback" element={<MyFeedback />} />
+                <Route path="/track" element={<TrackFeedback />} />
                 <Route path="/feedback/:id" element={<FeedbackDetail />} />
               </Route>
             </Route>
@@ -65,10 +64,10 @@ function App() {
               <Route element={<DashboardLayout />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/feedback" element={<ManageFeedback />} />
+                <Route path="/admin/feedback/:id" element={<FeedbackSummary />} />
                 <Route path="/admin/users" element={<ManageUsers />} />
                 <Route path="/admin/departments" element={<ManageDepartments />} />
-                <Route path="/admin/analytics" element={<Analytics />} />
-                <Route path="/admin/reports" element={<Reports />} />
+                <Route path="/admin/departments/:id" element={<DepartmentAnalytics />} />
               </Route>
             </Route>
 
