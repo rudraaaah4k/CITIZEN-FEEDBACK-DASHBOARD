@@ -3,6 +3,7 @@ import Notification from '../models/Notification';
 import { catchAsync } from '../utils/catchAsync';
 import { sendSuccess, buildPagination } from '../utils/apiResponse';
 import { AuthRequest } from '../middleware/auth';
+import { emitToUser } from '../config/socket';
 
 export const getNotifications = catchAsync(async (req: AuthRequest, res: Response, next: NextFunction) => {
   const { page = '1', limit = '20', isRead } = req.query;
@@ -38,6 +39,8 @@ export const markAsRead = catchAsync(async (req: AuthRequest, res: Response, nex
     { isRead: true, readAt: new Date() }
   );
 
+  if (req.user?.id) emitToUser(req.user.id, 'notification:read', { id: req.params.id });
+
   sendSuccess(res, null, 'Notification marked as read');
 });
 
@@ -46,6 +49,8 @@ export const markAllAsRead = catchAsync(async (req: AuthRequest, res: Response, 
     { recipient: req.user?.id, isRead: false },
     { isRead: true, readAt: new Date() }
   );
+
+  if (req.user?.id) emitToUser(req.user.id, 'notification:read-all', {});
 
   sendSuccess(res, null, 'All notifications marked as read');
 });

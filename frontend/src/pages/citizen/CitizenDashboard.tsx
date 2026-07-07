@@ -41,7 +41,7 @@ export default function CitizenDashboard() {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Recent Feedback</CardTitle>
-          <Link to="/my-feedback" className="flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300">
+          <Link to="/track" className="flex items-center gap-1 text-sm text-indigo-400 hover:text-indigo-300">
             View all <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </CardHeader>

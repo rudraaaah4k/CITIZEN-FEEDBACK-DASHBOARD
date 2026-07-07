@@ -35,4 +35,7 @@ export const feedbackService = {
 
   getStats: () =>
     api.get<ApiResponse<Record<string, unknown>>>('/feedback/stats'),
+
+  downloadPDF: (id: string) =>
+    api.get(`/feedback/${id}/pdf`, { responseType: 'blob' }),
 };

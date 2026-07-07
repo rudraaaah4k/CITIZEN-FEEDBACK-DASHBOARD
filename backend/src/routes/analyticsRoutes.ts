@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getDashboardStats,
   getDepartmentAnalytics,
+  getDepartmentAnalyticsById,
   getSentimentTrend,
   getTopicAnalysis,
   getEmotionAnalytics,
@@ -14,6 +15,7 @@ router.use(authenticate, authorize('admin', 'moderator', 'department_head'));
 
 router.get('/dashboard', getDashboardStats);
 router.get('/departments', getDepartmentAnalytics);
+router.get('/departments/:id', getDepartmentAnalyticsById);
 router.get('/sentiment-trend', getSentimentTrend);
 router.get('/topics', getTopicAnalysis);
 router.get('/emotions', getEmotionAnalytics);

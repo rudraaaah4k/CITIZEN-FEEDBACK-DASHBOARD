@@ -229,7 +229,24 @@ export interface DashboardStats {
   };
   recentFeedback: Feedback[];
 }
-
+export interface DepartmentAnalyticsDetail {
+  department: Department;
+  totals: {
+    total: number;
+    resolved: number;
+    pending: number;
+    urgent: number;
+    avgRating: number;
+  };
+  charts: {
+    statusDistribution: Array<{ _id: string; count: number }>;
+    sentimentDistribution: Array<{ _id: string; count: number }>;
+    priorityDistribution: Array<{ _id: string; count: number }>;
+    monthlyTrend: Array<{ year: number; month: number; total: number; resolved: number }>;
+    topKeywords: Array<{ word: string; count: number }>;
+  };
+  recentFeedback: Feedback[];
+}
 export interface AuthState {
   user: User | null;
   accessToken: string | null;

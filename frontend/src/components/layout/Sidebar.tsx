@@ -1,30 +1,33 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
   MessageSquarePlus,
-  History,
   Search,
   Bell,
-  UserCircle,
   Users,
   Building2,
+  MessageSquareText,
+  LogOut,
+  X,
+   History,
   BarChart3,
   FileBarChart,
-  MessageSquareText,
-  X,
 } from 'lucide-react';
+import { Button } from '../ui/Button';
+import { Modal } from '../ui/Modal';
 import { useAuthStore } from '../../stores/authStore';
 import { useUIStore } from '../../stores/uiStore';
+import { useAuth } from '../../hooks/useAuth';
 import { cn } from '../../lib/utils';
 
 const citizenLinks = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/submit-feedback', label: 'Submit Feedback', icon: MessageSquarePlus },
-  { to: '/my-feedback', label: 'My Feedback', icon: History },
-  { to: '/track', label: 'Track Complaint', icon: Search },
+   { to: '/my-feedback', label: 'My Feedback', icon: History },
+  { to: '/track', label: 'Track Your Complaints', icon: Search },
   { to: '/notifications', label: 'Notifications', icon: Bell },
-  { to: '/profile', label: 'Profile', icon: UserCircle },
 ];
 
 const adminLinks = [
@@ -32,15 +35,16 @@ const adminLinks = [
   { to: '/admin/feedback', label: 'Manage Feedback', icon: MessageSquarePlus },
   { to: '/admin/users', label: 'Manage Users', icon: Users },
   { to: '/admin/departments', label: 'Departments', icon: Building2 },
-  { to: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
+   { to: '/admin/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/admin/reports', label: 'Reports', icon: FileBarChart },
   { to: '/notifications', label: 'Notifications', icon: Bell },
-  { to: '/profile', label: 'Profile', icon: UserCircle },
 ];
 
 export const Sidebar = () => {
   const { user } = useAuthStore();
   const { sidebarOpen, setSidebarOpen } = useUIStore();
+  const { logout, isLogoutLoading } = useAuth();
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const links = user?.role === 'citizen' ? citizenLinks : adminLinks;
 
   const content = (
@@ -54,7 +58,7 @@ export const Sidebar = () => {
           <X className="h-5 w-5" />
         </button>
       </div>
-      <nav className="flex flex-col gap-1 px-3 py-4">
+      <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
         {links.map((link) => (
           <NavLink
             key={link.to}
@@ -83,6 +87,15 @@ export const Sidebar = () => {
           </NavLink>
         ))}
       </nav>
+      <div className="border-t border-white/5 p-3">
+        <button
+          onClick={() => setConfirmOpen(true)}
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-red-500/10 hover:text-red-400"
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </button>
+      </div>
     </>
   );
 
@@ -106,6 +119,20 @@ export const Sidebar = () => {
           </motion.aside>
         </div>
       )}
+
+      <Modal isOpen={confirmOpen} onClose={() => setConfirmOpen(false)} title="Log out?">
+        <p className="text-sm text-muted-foreground">
+          Are you sure you want to log out? You'll need to sign in again to access your dashboard.
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="destructive" isLoading={isLogoutLoading} onClick={() => logout()}>
+            Log Out
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 };

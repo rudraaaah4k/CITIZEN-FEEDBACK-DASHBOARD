@@ -1,18 +1,18 @@
 import { motion } from 'framer-motion';
-import { Bell, CheckCheck, Trash2 } from 'lucide-react';
+import { Bell, CheckCheck } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { TableRowSkeleton } from '../../components/ui/Skeleton';
-import { useNotifications, useMarkAsRead, useMarkAllAsRead, useDeleteNotification } from '../../hooks/useNotifications';
+import { useNotifications, useMarkAsRead, useMarkAllAsRead } from '../../hooks/useNotifications';
 import { timeAgo, cn } from '../../lib/utils';
 
 export default function Notifications() {
   const { data, isLoading } = useNotifications({ limit: 30 });
   const { mutate: markAsRead } = useMarkAsRead();
-  const { mutate: markAllAsRead } = useMarkAllAsRead();
-  const { mutate: deleteNotification } = useDeleteNotification();
+  const { mutate: markAllAsRead, isPending: isMarkingAll } = useMarkAllAsRead();
   const notifications = data?.notifications || [];
+  const allRead = notifications.length > 0 && notifications.every((n) => n.isRead);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -22,8 +22,16 @@ export default function Notifications() {
           <p className="mt-1 text-sm text-muted-foreground">Stay updated on your feedback status.</p>
         </div>
         {!!notifications.length && (
-          <Button variant="outline" size="sm" leftIcon={<CheckCheck className="h-4 w-4" />} onClick={() => markAllAsRead()}>
-            Mark all read
+          <Button
+            variant={allRead ? 'primary' : 'outline'}
+            size="sm"
+            leftIcon={<CheckCheck className="h-4 w-4" />}
+            onClick={() => !allRead && markAllAsRead()}
+            isLoading={isMarkingAll}
+            disabled={allRead}
+            className={cn(allRead && 'bg-emerald-500 shadow-none hover:bg-emerald-500 text-white cursor-default')}
+          >
+            {allRead ? 'All caught up' : 'Mark all read'}
           </Button>
         )}
       </div>
@@ -56,15 +64,6 @@ export default function Notifications() {
                   <p className="mt-0.5 text-sm text-muted-foreground">{n.message}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{timeAgo(n.createdAt)}</p>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteNotification(n._id);
-                  }}
-                  className="text-muted-foreground hover:text-red-400"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
               </motion.div>
             ))}
           </div>

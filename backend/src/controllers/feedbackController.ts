@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
+import PDFDocument from 'pdfkit';
 import Feedback, { FeedbackStatus } from '../models/Feedback';
 import Department from '../models/Department';
 import Category from '../models/Category';
@@ -11,6 +12,7 @@ import { sendSuccess, buildPagination } from '../utils/apiResponse';
 import { analyzeText } from '../services/aiService';
 import { AuthRequest } from '../middleware/auth';
 import { sendFeedbackStatusEmail } from '../utils/emailService';
+import { emitToUser, emitToAdmins, emitToFeedback } from '../config/socket';
 import logger from '../utils/logger';
 
 export const submitFeedback = catchAsync(async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -104,6 +106,17 @@ export const submitFeedback = catchAsync(async (req: AuthRequest, res: Response,
     { path: 'department', select: 'name code color' },
     { path: 'category', select: 'name color' },
   ]);
+
+  // Real-time: notify admins so the dashboard, department view and feedback list
+  // can refresh immediately instead of waiting for the next poll.
+  emitToAdmins('feedback:new', { feedback });
+  admins.forEach((admin) => {
+    emitToUser(admin._id.toString(), 'notification:new', {
+      title: 'New Feedback Received',
+      message: `New ${aiAnalysis.isUrgent ? 'urgent ' : ''}feedback: "${title}" in ${deptExists.name} department.`,
+      type: 'feedback_submitted',
+    });
+  });
 
   sendSuccess(res, { feedback }, 'Feedback submitted successfully', 201);
 });
@@ -290,6 +303,12 @@ export const updateFeedbackStatus = catchAsync(async (req: AuthRequest, res: Res
       data: { trackingId: feedback.trackingId, previousStatus, newStatus: status },
     });
 
+    emitToUser(submitter._id.toString(), 'notification:new', {
+      title: 'Feedback Status Updated',
+      message: `Your feedback "${feedback.title}" is now ${status.replace('_', ' ')}.`,
+      type: 'status_changed',
+    });
+
     if (submitter.notificationPreferences?.email) {
       try {
         await sendFeedbackStatusEmail(
@@ -303,6 +322,15 @@ export const updateFeedbackStatus = catchAsync(async (req: AuthRequest, res: Res
         logger.warn(`Status email failed for ${submitter.email}`);
       }
     }
+  }
+
+  // Real-time: push the updated feedback to anyone viewing this specific feedback,
+  // to admins managing the list/dashboard, and to the submitter directly.
+  emitToFeedback(id, 'feedback:updated', { feedback: updatedFeedback });
+  emitToAdmins('feedback:updated', { feedback: updatedFeedback });
+  if (updatedFeedback?.submittedBy) {
+    const submitterId = (updatedFeedback.submittedBy as unknown as { _id: mongoose.Types.ObjectId })._id.toString();
+    emitToUser(submitterId, 'feedback:updated', { feedback: updatedFeedback });
   }
 
   sendSuccess(res, { feedback: updatedFeedback }, 'Feedback status updated successfully');
@@ -408,3 +436,94 @@ export const getFeedbackStats = catchAsync(async (req: AuthRequest, res: Respons
     resolutionRate: parseFloat(resolutionRate),
   }, 'Stats retrieved');
 });
+
+// Generates a one-off PDF summary for a single piece of feedback, on demand.
+// This lives on the feedback summary page and replaces the old, generic
+// batch "Reports" feature.
+export const downloadFeedbackPDF = catchAsync(async (req: AuthRequest, res: Response, next: NextFunction) => {
+  const feedback = await Feedback.findById(req.params.id)
+    .populate('department', 'name code email')
+    .populate('category', 'name')
+    .populate('submittedBy', 'name email')
+    .populate('assignedTo', 'name email')
+    .populate('statusHistory.changedBy', 'name role');
+
+  if (!feedback) {
+    return next(new AppError('Feedback not found', 404));
+  }
+
+  const doc = new PDFDocument({ margin: 50, size: 'A4' });
+  const safeId = feedback.trackingId || feedback._id.toString();
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="feedback-summary-${safeId}.pdf"`);
+
+  doc.pipe(res);
+
+  const department = feedback.department as unknown as { name?: string; code?: string } | undefined;
+  const category = feedback.category as unknown as { name?: string } | undefined;
+  const submittedBy = feedback.submittedBy as unknown as { name?: string; email?: string } | undefined;
+
+  doc
+    .fontSize(20)
+    .fillColor('#1e1b4b')
+    .text('Feedback Summary Report', { align: 'center' })
+    .moveDown(0.5);
+
+  doc
+    .fontSize(10)
+    .fillColor('#64748b')
+    .text(`Generated on ${new Date().toLocaleString()}`, { align: 'center' })
+    .moveDown(1.5);
+
+  const addRow = (label: string, value: string) => {
+    doc.fontSize(11).fillColor('#334155').font('Helvetica-Bold').text(`${label}: `, { continued: true });
+    doc.font('Helvetica').fillColor('#0f172a').text(value || 'N/A');
+  };
+
+  doc.fontSize(14).fillColor('#1e1b4b').font('Helvetica-Bold').text('Overview').moveDown(0.3);
+  addRow('Tracking ID', feedback.trackingId);
+  addRow('Title', feedback.title);
+  addRow('Status', feedback.status.replace('_', ' '));
+  addRow('Priority', feedback.priority);
+  addRow('Rating', `${feedback.rating} / 5`);
+  addRow('Department', department?.name || 'N/A');
+  addRow('Category', category?.name || 'N/A');
+  addRow('Submitted By', feedback.isAnonymous ? 'Anonymous' : submittedBy?.name || 'Unknown');
+  addRow('Submitted On', new Date(feedback.createdAt).toLocaleString());
+  if (feedback.resolvedAt) addRow('Resolved On', new Date(feedback.resolvedAt).toLocaleString());
+  doc.moveDown(1);
+
+  doc.fontSize(14).fillColor('#1e1b4b').font('Helvetica-Bold').text('Description').moveDown(0.3);
+  doc.fontSize(11).font('Helvetica').fillColor('#0f172a').text(feedback.description, { align: 'left' }).moveDown(1);
+
+  if (feedback.aiAnalysis) {
+    doc.fontSize(14).fillColor('#1e1b4b').font('Helvetica-Bold').text('AI Analysis').moveDown(0.3);
+    addRow('Sentiment', feedback.aiAnalysis.sentiment);
+    addRow('Urgency Score', `${Math.round((feedback.aiAnalysis.urgencyScore || 0) * 100)}%`);
+    addRow('Language', (feedback.aiAnalysis.language || 'N/A').toUpperCase());
+    if (feedback.aiAnalysis.keywords?.length) addRow('Keywords', feedback.aiAnalysis.keywords.join(', '));
+    if (feedback.aiAnalysis.summary) addRow('AI Summary', feedback.aiAnalysis.summary);
+    doc.moveDown(1);
+  }
+
+  if (feedback.resolutionNotes) {
+    doc.fontSize(14).fillColor('#1e1b4b').font('Helvetica-Bold').text('Resolution Notes').moveDown(0.3);
+    doc.fontSize(11).font('Helvetica').fillColor('#0f172a').text(feedback.resolutionNotes).moveDown(1);
+  }
+
+  if (feedback.statusHistory?.length) {
+    doc.fontSize(14).fillColor('#1e1b4b').font('Helvetica-Bold').text('Status Timeline').moveDown(0.3);
+    feedback.statusHistory.forEach((h) => {
+      const changedBy = h.changedBy as unknown as { name?: string } | undefined;
+      doc
+        .fontSize(10)
+        .font('Helvetica')
+        .fillColor('#334155')
+        .text(`${new Date(h.changedAt).toLocaleString()} — ${h.status.replace('_', ' ')}${changedBy?.name ? ` (by ${changedBy.name})` : ''}${h.note ? `: ${h.note}` : ''}`);
+    });
+  }
+
+  doc.end();
+});
+

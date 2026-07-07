@@ -27,3 +27,13 @@ export const PublicOnlyRoute = () => {
   }
   return <Outlet />;
 };
+
+// Same redirect behavior as PublicOnlyRoute, used specifically for the landing page ("/")
+// so logged-in users land on their dashboard instead of the marketing homepage.
+export const HomeRoute = () => {
+  const { isAuthenticated, user } = useAuthStore();
+  if (isAuthenticated) {
+    return <Navigate to={user?.role === 'citizen' ? '/dashboard' : '/admin/dashboard'} replace />;
+  }
+  return <Outlet />;
+};

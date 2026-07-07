@@ -1,3 +1,5 @@
+const dns = require('dns');
+dns.setServers(['8.8.8.8', '8.8.4.4']);
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
@@ -68,14 +70,15 @@ const seed = async (): Promise<void> => {
       isActive: true,
     });
 
-    const citizens = await User.insertMany([
-      { name: 'Rahul Sharma', email: 'rahul@example.com', password: 'Citizen@123', role: 'citizen', isVerified: true, isActive: true, city: 'Mumbai', state: 'Maharashtra' },
-      { name: 'Priya Patel', email: 'priya@example.com', password: 'Citizen@123', role: 'citizen', isVerified: true, isActive: true, city: 'Pune', state: 'Maharashtra' },
-      { name: 'Amit Kumar', email: 'amit@example.com', password: 'Citizen@123', role: 'citizen', isVerified: true, isActive: true, city: 'Delhi', state: 'Delhi' },
-      { name: 'Sneha Reddy', email: 'sneha@example.com', password: 'Citizen@123', role: 'citizen', isVerified: true, isActive: true, city: 'Hyderabad', state: 'Telangana' },
-      { name: 'Vijay Singh', email: 'vijay@example.com', password: 'Citizen@123', role: 'citizen', isVerified: true, isActive: true, city: 'Jaipur', state: 'Rajasthan' },
-    ]);
-    logger.info(`Created ${citizens.length} citizens`);
+   const citizenData = [
+  { name: 'Rahul Sharma', email: 'rahul@example.com', password: 'Citizen@123', role: 'citizen', isVerified: true, isActive: true, city: 'Mumbai', state: 'Maharashtra' },
+  { name: 'Priya Patel', email: 'priya@example.com', password: 'Citizen@123', role: 'citizen', isVerified: true, isActive: true, city: 'Pune', state: 'Maharashtra' },
+  { name: 'Amit Kumar', email: 'amit@example.com', password: 'Citizen@123', role: 'citizen', isVerified: true, isActive: true, city: 'Delhi', state: 'Delhi' },
+  { name: 'Sneha Reddy', email: 'sneha@example.com', password: 'Citizen@123', role: 'citizen', isVerified: true, isActive: true, city: 'Hyderabad', state: 'Telangana' },
+  { name: 'Vijay Singh', email: 'vijay@example.com', password: 'Citizen@123', role: 'citizen', isVerified: true, isActive: true, city: 'Jaipur', state: 'Rajasthan' },
+];
+
+const citizens = await Promise.all(citizenData.map((c) => User.create(c)));
 
     const createdDepts = await Department.insertMany(departments);
     logger.info(`Created ${createdDepts.length} departments`);
@@ -84,18 +87,18 @@ const seed = async (): Promise<void> => {
     createdDepts.forEach((d) => { deptMap[d.code] = d._id; });
 
     const categoryData = [
-      { name: 'Road Damage', department: deptMap['PWD'], description: 'Potholes, cracks, and road surface issues', icon: 'AlertTriangle', color: '#ef4444' },
-      { name: 'Bridge Maintenance', department: deptMap['PWD'], description: 'Bridge structural issues and maintenance', icon: 'Building2', color: '#f59e0b' },
-      { name: 'Street Lighting', department: deptMap['ELEC'], description: 'Streetlight outages and electrical issues', icon: 'Lightbulb', color: '#fbbf24' },
-      { name: 'Power Outage', department: deptMap['ELEC'], description: 'Electricity supply disruptions', icon: 'Zap', color: '#f97316' },
-      { name: 'Water Contamination', department: deptMap['WSD'], description: 'Water quality and safety issues', icon: 'Droplets', color: '#3b82f6' },
-      { name: 'Water Shortage', department: deptMap['WSD'], description: 'Inadequate water supply', icon: 'Droplets', color: '#06b6d4' },
-      { name: 'Garbage Collection', department: deptMap['SAN'], description: 'Waste pickup scheduling issues', icon: 'Trash2', color: '#10b981' },
-      { name: 'Medical Services', department: deptMap['HEALTH'], description: 'Hospital and clinic quality issues', icon: 'Heart', color: '#ef4444' },
-      { name: 'School Infrastructure', department: deptMap['EDU'], description: 'School building and facility issues', icon: 'School', color: '#8b5cf6' },
-      { name: 'Bus Service', department: deptMap['TRANS'], description: 'Public bus route and frequency issues', icon: 'Bus', color: '#f97316' },
-      { name: 'Traffic Management', department: deptMap['TRANS'], description: 'Traffic signals and congestion', icon: 'TrafficCone', color: '#f59e0b' },
-      { name: 'Crime & Safety', department: deptMap['POLICE'], description: 'Crime reporting and safety concerns', icon: 'Shield', color: '#1d4ed8' },
+      { name: 'Road Damage', slug:'road-damage',department: deptMap['PWD'], description: 'Potholes, cracks, and road surface issues', icon: 'AlertTriangle', color: '#ef4444' },
+      { name: 'Bridge Maintenance',slug:'bridge-maintenance', department: deptMap['PWD'], description: 'Bridge structural issues and maintenance', icon: 'Building2', color: '#f59e0b' },
+      { name: 'Street Lighting',slug:'street-lightning', department: deptMap['ELEC'], description: 'Streetlight outages and electrical issues', icon: 'Lightbulb', color: '#fbbf24' },
+      { name: 'Power Outage',slug:'power-outrage', department: deptMap['ELEC'], description: 'Electricity supply disruptions', icon: 'Zap', color: '#f97316' },
+      { name: 'Water Contamination',slug:'water-contamination', department: deptMap['WSD'], description: 'Water quality and safety issues', icon: 'Droplets', color: '#3b82f6' },
+      { name: 'Water Shortage', slug:'water-shortage',department: deptMap['WSD'], description: 'Inadequate water supply', icon: 'Droplets', color: '#06b6d4' },
+      { name: 'Garbage Collection',slug:'garbage-collection', department: deptMap['SAN'], description: 'Waste pickup scheduling issues', icon: 'Trash2', color: '#10b981' },
+      { name: 'Medical Services',slug:'medical-services', department: deptMap['HEALTH'], description: 'Hospital and clinic quality issues', icon: 'Heart', color: '#ef4444' },
+      { name: 'School Infrastructure',slug:'school-infrastructure', department: deptMap['EDU'], description: 'School building and facility issues', icon: 'School', color: '#8b5cf6' },
+      { name: 'Bus Service',slug:'bus-service', department: deptMap['TRANS'], description: 'Public bus route and frequency issues', icon: 'Bus', color: '#f97316' },
+      { name: 'Traffic Management',slug:'traffic-management', department: deptMap['TRANS'], description: 'Traffic signals and congestion', icon: 'TrafficCone', color: '#f59e0b' },
+      { name: 'Crime & Safety',slug:'crime-safety', department: deptMap['POLICE'], description: 'Crime reporting and safety concerns', icon: 'Shield', color: '#1d4ed8' },
     ];
 
     const createdCats = await Category.insertMany(categoryData);

@@ -223,9 +223,9 @@ export const login = catchAsync(async (req: Request, res: Response, next: NextFu
     if (attempts >= maxAttempts) {
       await User.findByIdAndUpdate(user._id, {
         loginAttempts: attempts,
-        lockUntil: new Date(Date.now() + 30 * 60 * 1000),
+        lockUntil: new Date(Date.now() + 5 * 60 * 1000),
       });
-      return next(new AppError('Too many failed attempts. Account locked for 30 minutes.', 423));
+      return next(new AppError('Too many failed attempts. Account locked for 5 minutes.', 423));
     }
 
     await User.findByIdAndUpdate(user._id, { loginAttempts: attempts });

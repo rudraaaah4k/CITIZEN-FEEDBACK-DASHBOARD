@@ -30,6 +30,10 @@ const ManageUsers = lazy(() => import('./pages/admin/ManageUsers'));
 const ManageDepartments = lazy(() => import('./pages/admin/ManageDepartments'));
 const Analytics = lazy(() => import('./pages/admin/Analytics'));
 const Reports = lazy(() => import('./pages/admin/Reports'));
+// add these lazy imports near your other citizen/admin imports
+
+const FeedbackSummary = lazy(() => import('./pages/admin/FeedbackSummary'));
+const DepartmentAnalytics = lazy(() => import('./pages/admin/DepartmentAnalytics'));
 
 function App() {
   return (
@@ -40,7 +44,7 @@ function App() {
             {/* Public site */}
             <Route element={<PublicLayout />}>
               <Route path="/" element={<Landing />} />
-              <Route path="/track" element={<TrackFeedback />} />
+              
             </Route>
 
             {/* Public-only auth routes */}
@@ -58,6 +62,7 @@ function App() {
                 <Route path="/dashboard" element={<CitizenDashboard />} />
                 <Route path="/submit-feedback" element={<SubmitFeedback />} />
                 <Route path="/my-feedback" element={<MyFeedback />} />
+                <Route path="/track" element={<TrackFeedback />} />
                 <Route path="/feedback/:id" element={<FeedbackDetail />} />
               </Route>
             </Route>
@@ -67,10 +72,13 @@ function App() {
               <Route element={<DashboardLayout />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/feedback" element={<ManageFeedback />} />
+                <Route path="/admin/feedback/:id" element={<FeedbackSummary />} />
                 <Route path="/admin/users" element={<ManageUsers />} />
                 <Route path="/admin/departments" element={<ManageDepartments />} />
+                 <Route path="/admin/departments/:id" element={<DepartmentAnalytics />} />
                 <Route path="/admin/analytics" element={<Analytics />} />
                 <Route path="/admin/reports" element={<Reports />} />
+                
               </Route>
             </Route>
 
