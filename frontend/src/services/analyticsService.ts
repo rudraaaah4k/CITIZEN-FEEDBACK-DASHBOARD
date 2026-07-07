@@ -1,5 +1,5 @@
 import api from './api';
-import { ApiResponse, DashboardStats } from '../types';
+import { ApiResponse, DashboardStats, DepartmentAnalyticsDetail } from '../types';
 
 export const analyticsService = {
   getDashboardStats: () =>
@@ -7,6 +7,9 @@ export const analyticsService = {
 
   getDepartmentAnalytics: () =>
     api.get<ApiResponse<{ analytics: unknown[] }>>('/analytics/departments'),
+
+  getDepartmentAnalyticsById: (id: string) =>
+    api.get<ApiResponse<DepartmentAnalyticsDetail>>(`/analytics/departments/${id}`),
 
   getSentimentTrend: (period?: number) =>
     api.get<ApiResponse<{ trend: unknown[]; heatmapData: unknown[] }>>('/analytics/sentiment-trend', {

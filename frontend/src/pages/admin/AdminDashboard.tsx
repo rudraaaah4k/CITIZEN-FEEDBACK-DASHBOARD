@@ -4,7 +4,6 @@ import { Users, MessageSquareText, CheckCircle2, AlertTriangle, ArrowRight } fro
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { KPICard } from '../../components/shared/KPICard';
 import { PieChartCard } from '../../components/charts/PieChartCard';
-import { BarChartCard } from '../../components/charts/BarChartCard';
 import { AreaChartCard } from '../../components/charts/AreaChartCard';
 import { StatusBadge, PriorityBadge } from '../../components/shared/StatusBadge';
 import { CardSkeleton } from '../../components/ui/Skeleton';
@@ -74,21 +73,33 @@ export default function AdminDashboard() {
         />
       </div>
 
-      <BarChartCard
-        title="Department Comparison"
-        labels={charts.departmentStats.map((d) => d.code)}
-        datasets={[
-          { label: 'Total', data: charts.departmentStats.map((d) => d.total) },
-          { label: 'Resolved', data: charts.departmentStats.map((d) => d.resolved), color: '#10b981' },
-        ]}
-      />
-
       <AreaChartCard
         title="Monthly Feedback Volume"
         labels={charts.monthlyTrend.map((m) => `${MONTHS[m.month - 1]} ${m.year}`)}
         data={charts.monthlyTrend.map((m) => m.total)}
         label="Feedback"
       />
+
+      {charts.topKeywords?.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Top Keywords</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {charts.topKeywords.map((k) => (
+                <span
+                  key={k.word}
+                  className="rounded-full bg-white/5 px-3 py-1.5 text-xs text-muted-foreground"
+                  style={{ fontSize: `${Math.min(16, 11 + k.count / 3)}px` }}
+                >
+                  #{k.word} · {k.count}
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -104,18 +115,22 @@ export default function AdminDashboard() {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.04 }}
-              className="flex flex-col gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-4 sm:flex-row sm:items-center sm:justify-between"
             >
-              <div className="min-w-0">
-                <p className="truncate font-medium text-foreground">{f.title}</p>
-                <p className="text-xs text-muted-foreground">
-                  {f.trackingId} · {formatDate(f.createdAt)}
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <PriorityBadge priority={f.priority} />
-                <StatusBadge status={f.status} />
-              </div>
+              <Link
+                to={`/admin/feedback/${f._id}`}
+                className="flex flex-col gap-2 rounded-xl border border-white/5 bg-white/[0.02] p-4 transition-colors hover:border-white/10 hover:bg-white/[0.04] sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-foreground">{f.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {f.trackingId} · {formatDate(f.createdAt)}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <PriorityBadge priority={f.priority} />
+                  <StatusBadge status={f.status} />
+                </div>
+              </Link>
             </motion.div>
           ))}
         </CardContent>

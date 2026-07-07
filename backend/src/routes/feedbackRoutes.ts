@@ -9,6 +9,7 @@ import {
   getMyFeedbacks,
   addAdminNote,
   getFeedbackStats,
+  downloadFeedbackPDF,
 } from '../controllers/feedbackController';
 import { authenticate, authorize, optionalAuth } from '../middleware/auth';
 import { feedbackLimiter, uploadLimiter } from '../middleware/rateLimiter';
@@ -29,9 +30,11 @@ router.post(
   submitFeedback
 );
 
+router.get('/:id/pdf', authenticate, authorize('admin', 'moderator', 'department_head'), downloadFeedbackPDF);
 router.get('/:id', authenticate, getFeedbackById);
 router.patch('/:id/status', authenticate, authorize('admin', 'moderator', 'department_head'), updateFeedbackStatus);
 router.patch('/:id/note', authenticate, authorize('admin', 'moderator'), addAdminNote);
 router.delete('/:id', authenticate, deleteFeedback);
 
 export default router;
+

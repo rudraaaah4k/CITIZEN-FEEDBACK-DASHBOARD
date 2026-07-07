@@ -18,6 +18,15 @@ export const useDepartmentAnalytics = () => {
   });
 };
 
+export const useDepartmentAnalyticsById = (id: string, enabled = true) => {
+  return useQuery({
+    queryKey: ['department-analytics-detail', id],
+    queryFn: () => analyticsService.getDepartmentAnalyticsById(id),
+    enabled: enabled && !!id,
+    select: (data) => data.data.data,
+  });
+};
+
 export const useSentimentTrend = (period = 30) => {
   return useQuery({
     queryKey: ['sentiment-trend', period],

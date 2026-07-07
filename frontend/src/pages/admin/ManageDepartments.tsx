@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Building2, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Building2, Plus, Pencil, Trash2, ArrowUpRight } from 'lucide-react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -10,7 +11,9 @@ import { Modal } from '../../components/ui/Modal';
 import { ProgressBar } from '../../components/ui/ProgressBar';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { CardSkeleton } from '../../components/ui/Skeleton';
+import { BarChartCard } from '../../components/charts/BarChartCard';
 import { useDepartments, useCreateDepartment, useUpdateDepartment, useDeleteDepartment } from '../../hooks/useDepartments';
+import { useDashboardStats } from '../../hooks/useAnalytics';
 import { Department } from '../../types';
 
 interface DeptForm {
@@ -26,6 +29,7 @@ const defaultColor = '#6366f1';
 
 export default function ManageDepartments() {
   const { data: departments, isLoading } = useDepartments();
+  const { data: dashboard } = useDashboardStats();
   const { mutate: createDept, isPending: isCreating } = useCreateDepartment();
   const { mutate: updateDept, isPending: isUpdating } = useUpdateDepartment();
   const { mutate: deleteDept } = useDeleteDepartment();
@@ -66,6 +70,17 @@ export default function ManageDepartments() {
         </Button>
       </div>
 
+      {!!dashboard?.charts.departmentStats.length && (
+        <BarChartCard
+          title="Global Department Comparison"
+          labels={dashboard.charts.departmentStats.map((d) => d.code)}
+          datasets={[
+            { label: 'Total', data: dashboard.charts.departmentStats.map((d) => d.total) },
+            { label: 'Resolved', data: dashboard.charts.departmentStats.map((d) => d.resolved), color: '#10b981' },
+          ]}
+        />
+      )}
+
       {isLoading ? (
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => <CardSkeleton key={i} />)}
@@ -76,18 +91,18 @@ export default function ManageDepartments() {
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {departments.map((d, i) => (
             <motion.div key={d._id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-              <Card hover glow className="p-5">
+              <Card hover glow className="relative p-5">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl text-sm font-bold text-white" style={{ backgroundColor: d.color }}>
+                  <Link to={`/admin/departments/${d._id}`} className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white" style={{ backgroundColor: d.color }}>
                       {d.code.slice(0, 2)}
                     </div>
-                    <div>
-                      <p className="font-semibold text-foreground">{d.name}</p>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-foreground">{d.name}</p>
                       <p className="text-xs text-muted-foreground">{d.code}</p>
                     </div>
-                  </div>
-                  <div className="flex gap-1">
+                  </Link>
+                  <div className="flex shrink-0 gap-1">
                     <button onClick={() => openEdit(d)} className="text-muted-foreground hover:text-foreground">
                       <Pencil className="h-4 w-4" />
                     </button>
@@ -104,6 +119,12 @@ export default function ManageDepartments() {
                   </div>
                   <ProgressBar value={d.totalFeedback ? (d.resolvedFeedback / d.totalFeedback) * 100 : 0} className="mt-1.5" />
                 </div>
+                <Link
+                  to={`/admin/departments/${d._id}`}
+                  className="mt-4 flex items-center gap-1 text-xs font-medium text-indigo-400 hover:text-indigo-300"
+                >
+                  View department analytics <ArrowUpRight className="h-3.5 w-3.5" />
+                </Link>
               </Card>
             </motion.div>
           ))}

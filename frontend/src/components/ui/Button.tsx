@@ -6,13 +6,14 @@ import { cn } from '../../lib/utils';
 type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive' | 'glass';
 type Size = 'sm' | 'md' | 'lg' | 'icon';
 
-interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'ref'> {
+interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'ref' | 'children'> {
   variant?: Variant;
   size?: Size;
   isLoading?: boolean;
   magnetic?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 const variants: Record<Variant, string> = {

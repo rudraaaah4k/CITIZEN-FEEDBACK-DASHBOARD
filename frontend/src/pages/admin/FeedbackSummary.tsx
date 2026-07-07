@@ -1,18 +1,41 @@
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Paperclip, BrainCircuit, Smile, Frown, Meh } from 'lucide-react';
+import { ArrowLeft, Paperclip, BrainCircuit, Download, FileText } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { StatusBadge, PriorityBadge, SentimentBadge } from '../../components/shared/StatusBadge';
 import { StarRating } from '../../components/ui/StarRating';
 import { FullPageSpinner } from '../../components/ui/Spinner';
 import { ProgressBar } from '../../components/ui/ProgressBar';
-import { useFeedbackById } from '../../hooks/useFeedback';
+import { Select } from '../../components/ui/Select';
+import { Button } from '../../components/ui/Button';
+import { useFeedbackById, useUpdateFeedbackStatus, useDownloadFeedbackPDF } from '../../hooks/useFeedback';
+import { useFeedbackRealtime } from '../../hooks/useRealtime';
+import { FeedbackStatus } from '../../types';
 import { formatDateTime, cn } from '../../lib/utils';
 
-const emotionIcons: Record<string, typeof Smile> = { joy: Smile, sadness: Frown, anger: Frown, fear: Frown, surprise: Meh, disgust: Frown };
+const statusOptions = [
+  { label: 'Pending', value: 'pending' },
+  { label: 'Under Review', value: 'under_review' },
+  { label: 'In Progress', value: 'in_progress' },
+  { label: 'Resolved', value: 'resolved' },
+  { label: 'Rejected', value: 'rejected' },
+  { label: 'Closed', value: 'closed' },
+];
 
-export default function FeedbackDetail() {
+export default function FeedbackSummary() {
   const { id } = useParams<{ id: string }>();
   const { data: feedback, isLoading } = useFeedbackById(id || '');
+  const { mutate: updateStatus, isPending: isUpdating } = useUpdateFeedbackStatus();
+  const { mutate: downloadPDF, isPending: isDownloading } = useDownloadFeedbackPDF();
+
+  useFeedbackRealtime(id);
+
+  const [status, setStatus] = useState<FeedbackStatus>('pending');
+  const [note, setNote] = useState('');
+
+  useEffect(() => {
+    if (feedback) setStatus(feedback.status);
+  }, [feedback]);
 
   if (isLoading) return <FullPageSpinner />;
   if (!feedback) return <p className="text-muted-foreground">Feedback not found.</p>;
@@ -21,9 +44,20 @@ export default function FeedbackDetail() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <Link to="/track" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back to Track Your Complaints
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link to="/admin/feedback" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Back to Manage Feedback
+        </Link>
+        <Button
+          variant="outline"
+          size="sm"
+          leftIcon={<Download className="h-4 w-4" />}
+          isLoading={isDownloading}
+          onClick={() => downloadPDF({ id: feedback._id, trackingId: feedback.trackingId })}
+        >
+          Download PDF Summary
+        </Button>
+      </div>
 
       <Card className="p-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -43,11 +77,13 @@ export default function FeedbackDetail() {
           <span>·</span>
           <span>{feedback.category?.name}</span>
           <span>·</span>
+          <span>{feedback.isAnonymous ? 'Anonymous' : feedback.submittedBy?.name || 'Unknown'}</span>
+          <span>·</span>
           <span>{formatDateTime(feedback.createdAt)}</span>
         </div>
 
         <div className="mt-4 flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">Your rating:</span>
+          <span className="text-xs text-muted-foreground">Citizen rating:</span>
           <StarRating value={feedback.rating} readOnly size={16} />
         </div>
 
@@ -66,6 +102,37 @@ export default function FeedbackDetail() {
             ))}
           </div>
         )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Update Status</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Select label="Status" options={statusOptions} value={status} onChange={(e) => setStatus(e.target.value as FeedbackStatus)} />
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-foreground/90">Note (optional)</label>
+            <textarea
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={3}
+              placeholder="Add a note about this status change..."
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-indigo-500/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
+          <Button
+            isLoading={isUpdating}
+            disabled={status === feedback.status && !note}
+            onClick={() =>
+              updateStatus(
+                { id: feedback._id, status, note: note || undefined },
+                { onSuccess: () => setNote('') }
+              )
+            }
+          >
+            Save Status
+          </Button>
+        </CardContent>
       </Card>
 
       <Card>
@@ -130,7 +197,9 @@ export default function FeedbackDetail() {
       {feedback.statusHistory?.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Status Timeline</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-indigo-400" /> Status Timeline
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -139,7 +208,9 @@ export default function FeedbackDetail() {
                   <div className={cn('h-2 w-2 shrink-0 rounded-full mt-1.5', h.status === 'resolved' ? 'bg-emerald-400' : 'bg-indigo-400')} />
                   <div>
                     <StatusBadge status={h.status} />
-                    <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(h.changedAt)}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {formatDateTime(h.changedAt)}{h.changedBy?.name ? ` · by ${h.changedBy.name}` : ''}
+                    </p>
                     {h.note && <p className="mt-1 text-sm text-muted-foreground">{h.note}</p>}
                   </div>
                 </div>

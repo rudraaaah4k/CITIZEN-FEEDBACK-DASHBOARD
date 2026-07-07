@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Feedback from '../models/Feedback';
 import User from '../models/User';
 import Department from '../models/Department';
+import { AppError } from '../utils/AppError';
 import { catchAsync } from '../utils/catchAsync';
 import { sendSuccess } from '../utils/apiResponse';
 
@@ -260,6 +261,98 @@ export const getTopicAnalysis = catchAsync(async (req: Request, res: Response, n
   ]);
 
   sendSuccess(res, { topics }, 'Topic analysis retrieved');
+});
+
+// Personalized analytics for a single department: used on the department detail page.
+// Mirrors the shape of the global dashboard/department comparison so the UI can render
+// the same chart components, scoped to one department's real data.
+export const getDepartmentAnalyticsById = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
+  const { id } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    return next(new AppError('Invalid department id', 400));
+  }
+
+  const department = await Department.findById(id);
+  if (!department) {
+    return next(new AppError('Department not found', 404));
+  }
+
+  const deptObjectId = new mongoose.Types.ObjectId(id);
+
+  const [
+    totals,
+    statusDist,
+    sentimentDist,
+    priorityDist,
+    monthlyTrend,
+    topKeywords,
+    recentFeedback,
+  ] = await Promise.all([
+    Feedback.aggregate([
+      { $match: { department: deptObjectId } },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
+          pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+          urgent: { $sum: { $cond: ['$aiAnalysis.isUrgent', 1, 0] } },
+          avgRating: { $avg: '$rating' },
+        },
+      },
+    ]),
+    Feedback.aggregate([
+      { $match: { department: deptObjectId } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]),
+    Feedback.aggregate([
+      { $match: { department: deptObjectId } },
+      { $group: { _id: '$aiAnalysis.sentiment', count: { $sum: 1 } } },
+    ]),
+    Feedback.aggregate([
+      { $match: { department: deptObjectId } },
+      { $group: { _id: '$priority', count: { $sum: 1 } } },
+    ]),
+    Feedback.aggregate([
+      { $match: { department: deptObjectId } },
+      {
+        $group: {
+          _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } },
+          total: { $sum: 1 },
+          resolved: { $sum: { $cond: [{ $eq: ['$status', 'resolved'] }, 1, 0] } },
+        },
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1 } },
+      { $limit: 12 },
+      { $project: { year: '$_id.year', month: '$_id.month', total: 1, resolved: 1 } },
+    ]),
+    Feedback.aggregate([
+      { $match: { department: deptObjectId } },
+      { $unwind: '$aiAnalysis.keywords' },
+      { $group: { _id: '$aiAnalysis.keywords', count: { $sum: 1 } } },
+      { $sort: { count: -1 } },
+      { $limit: 15 },
+    ]),
+    Feedback.find({ department: deptObjectId })
+      .populate('category', 'name')
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select('title status priority aiAnalysis.sentiment createdAt trackingId category'),
+  ]);
+
+  sendSuccess(res, {
+    department,
+    totals: totals[0] || { total: 0, resolved: 0, pending: 0, urgent: 0, avgRating: 0 },
+    charts: {
+      statusDistribution: statusDist,
+      sentimentDistribution: sentimentDist,
+      priorityDistribution: priorityDist,
+      monthlyTrend,
+      topKeywords: topKeywords.map((k) => ({ word: k._id, count: k.count })),
+    },
+    recentFeedback,
+  }, 'Department analytics retrieved');
 });
 
 export const getEmotionAnalytics = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
